@@ -1,0 +1,197 @@
+---
+title: "226305 R Notebook WS18"
+author: "Swaran Sandhu"
+date: "16 12 2018"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+```{r igraph Bibliothek laden}
+library("igraph")
+```
+
+
+
+
+```{r Einlesen Datensatz}
+
+
+
+el <- read.csv("https://raw.githubusercontent.com/LaraSchue/NetzwerkeNestle/master/20190312_12.00_edges.csv", header=T, as.is=T, sep = ",")
+
+
+
+nodes <- read.csv("https://raw.githubusercontent.com/LaraSchue/NetzwerkeNestle/master/20190312_12.00_nodes.csv", header=T, as.is=T, sep = ",")
+
+
+
+head(el)
+
+head(nodes)
+
+
+
+edgematrix <-as.matrix(el)
+
+
+
+```
+einfacher Plot, keine Anpassungen
+```{r Plot}
+l <- graph_from_data_frame(d=el, vertices = nodes, directed = T)
+
+plot(l, 
+     edge.arrow.size=.3, 
+     layout=layout_with_kk, 
+     main=" Lebensmittellobby",
+     sub="neun Konzerne")
+```
+Knoten nach Attribut Typ einf??rben
+```{r Color}
+
+V(l)[(V(l)$Typ=="1")]$color <-"lightblue"
+V(l)[(V(l)$Typ=="2")]$color <-"blue"
+V(l)[(V(l)$Typ=="3")]$color <-"darkgrey"
+V(l)[(V(l)$Typ=="4")]$color <-"navy"
+V(l)[(V(l)$Typ=="5")]$color <-"dodgerblue"
+V(l)[(V(l)$Typ=="6")]$color <-"turquoise"
+V(l)[(V(l)$Typ=="7")]$color <-"whitesmoke"
+
+# Versuch, das Netzwerk zu entzerren
+
+entzerrt <- layout_with_kk(l)*0.01
+plot(l, 
+     edge.arrow.size=.3,
+     main=" Lebensmittelengagement",
+     layout= entzerrt,
+     vertex.label=NA, 
+     sub="Svenja Friederich, Lisa Hoefer, Elisa Horvath, Lara Schuettler, Katja Wanke")
+
+```
+
+```{r Edges nach Farbe skalieren - Attribute anlegen}
+E(l)[(E(l)$relationship=="1")]$color <-"dodgerblue"
+E(l)[(E(l)$relationship=="2")]$color <-"lightblue"
+E(l)[(E(l)$relationship=="3")]$color <-"darkgrey"
+E(l)[(E(l)$relationship=="4")]$color <-"navy"
+E(l)[(E(l)$relationship=="5")]$color <-"turquoise"
+E(l)[(E(l)$relationship=="6")]$color <-"darkslateblue"
+```
+
+Teilnetzwerke bilden: Konzerne und jeweils ein Typ Organisation
+```{r NGOUmwelt Teilnetzwerk}
+# edges nach Farbe durch Attribute 
+
+ngosumwelt1 <- delete_vertices(l, V(l)[Typ == "3"])
+ngosumwelt2 <- delete_vertices(ngosumwelt1, V(ngosumwelt1)[Typ == "5"])
+ngosumwelt3 <- delete_vertices(ngosumwelt2, V(ngosumwelt2)[Typ == "6"])
+ngosumwelt4 <- delete_vertices(ngosumwelt3, V(ngosumwelt3)[Typ == "7"])
+plot(ngosumwelt4,
+     vertex.color = "olivedrab3",
+     edge.arrow.size=0.35,
+     layout = layout_with_kk,
+     main = "Umwelt-NGOs und Konzerne")
+```
+```{r NGOPolitik Teilnetzwerk}
+ngospolitik1 <- delete_vertices(l, V(l)[Typ == "4"])
+ngospolitik2 <- delete_vertices(ngospolitik1, V(ngospolitik1)[Typ == "5"])
+ngospolitik3 <- delete_vertices(ngospolitik2, V(ngospolitik2)[Typ == "6"])
+ngospolitik4 <- delete_vertices(ngospolitik3, V(ngospolitik3)[Typ == "7"])
+plot(ngospolitik4,
+     vertex.color = "orange",
+     edge.arrow.size=0.35,
+     layout = layout_with_kk,
+     main = "NGO Gesellschaft und Konzerne")
+```
+```{r Vereine und Verbaende Teilnetzwerk}
+vv1 <- delete_vertices(l, V(l)[Typ == "4"])
+vv2 <- delete_vertices(vv1, V(vv1)[Typ == "7"])
+vv3 <- delete.vertices(vv2, V(vv2)[Typ == "3"])
+plot(vv3,
+     vertex.color = "lightblue",
+     edge.arrow.size=0.35,
+     layout = layout_with_kk,
+     main = "Vereine, Verbaende und Konzerne")
+```
+```{r Sonstiges Teilnetzwerk}
+son1 <- delete_vertices(l, V(l)[Typ == "4"])
+son2 <- delete_vertices(son1, V(son1)[Typ == "5"])
+son3 <- delete.vertices(son2, V(son2)[Typ == "3"])
+son4 <- delete.vertices(son3, V(son3)[Typ == "6"])
+plot(son4,
+     vertex.color = "plum4",
+     edge.arrow.size=0.35,
+     layout = layout_with_kk,
+     main = "Sonstiges Engagement")
+```
+
+```{r Netzwerk vereinfachen, weight aufaddieren}
+list.edge.attributes(l)
+edge.attributes(l)$relationship
+edge.attributes(l)$color
+
+plot(l,
+     edge.arrow.size=0.2,
+     edge.curved=0.2,
+     layout=layout_with_fr,
+     edge.width=E(l)$relationship,
+     main="Beispielnetzwerk CR/PR simplified", 
+     sub="Kanten aufaddiert")
+
+# Es m??ssten sich auch andere Edge-Attribute aufaddieren lassen, sofern diese numerisch codiert sind. Das m??ssten Sie ausprobieren.
+
+```
+
+```{r Selektierung nach Relationship}
+
+degree(l, mode = "in")
+
+relationship <- degree(l, mode="in")
+col=heat.colors(19)
+V(l)$color <- col[relationship]
+fine=19
+palette = colorRampPalette(c('yellow','red'))
+
+# definiert die Farbskala auf die Werte
+graphCol=palette(fine)[as.numeric(cut(relationship, breaks = fine))]
+
+# Plot nur mit Farbe nach dem Indegree-Wert
+plot(l, 
+     vertex.color=graphCol,
+     vertex.label=NA,
+     edge.arrow.size=.3,
+     edge.curved=.2,
+     main="Einfache Visualisierung")
+
+# Plot mit Farbe und Gr????e nach dem Indegree-Wert mit indegree-Wert als Beschriftung
+
+plot(l, 
+     layout = layout_with_kk,
+     vertex.color=graphCol, 
+     vertex.size=relationship*19, 
+     edge.arrow.size=.3,
+     edge.width=E(l)$relationship/2,
+     vertex.frame.color="white",
+     main = "Popularit??tswettbewerb",
+     sub = "h??chste Indegrees im Gesamtnetzwerk"
+     )
+
+```
+Cluster
+```{r Cluster}
+gc <- cluster_walktrap(l)
+modularity(gc)
+membership(gc)
+plot (gc, l, edge.arrow.size=0.2, vertex.label=NA)
+```
+
