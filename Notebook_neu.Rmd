@@ -1,0 +1,231 @@
+---
+title: "226305 R Notebook SS19"
+author: "Svenja Friederich (sf095), Lisa Hoefer (lh085), Elisa Horvath (eh035), Lara Schuettler (ls129), Katja Wanke (kw070)"
+date: "29 03 2019"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+###226305 Netzwerk Lebensmittelkonzerne und ihr Engagement
+
+Dieses Notebook dient zur Visualieriung der Datenerhebung zu neun Lebensmittelkonzernen (CocaCola, Danone, General Mills, Kelloggs, Mars, Mondelez, Nestle, PepsiCo und Unilever) und ihrem Engagement. Dies beinhaltet ihr ehrenamtliches Engagement und ihre Mitgliedschaft in Vereinen und Verb??nden.Das Engagement wurde zus??tzlich in verschiedene Kategorien eingeteilt.
+
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+```{r igraph Bibliothek laden}
+library("igraph")
+```
+
+### Kapitel 1: Datensatz einlesen und Gesamtnetzwerk erstellen
+
+
+```{r Einlesen Datensatz}
+
+el <- read.csv("https://raw.githubusercontent.com/LaraSchue/NetzwerkeNestle/master/20190312_12.00_edges.csv", header=T, as.is=T, sep = ",")
+
+nodes <- read.csv("https://raw.githubusercontent.com/LaraSchue/NetzwerkeNestle/master/20190312_12.00_nodes.csv", header=T, as.is=T, sep = ",")
+
+head(el)
+
+head(nodes)
+
+edgematrix <-as.matrix(el)
+
+```
+## Kapitel 1.1: einfacher Plot, keine Anpassungen
+
+```{r einfacher Plot}
+l <- graph_from_data_frame(d=el, vertices = nodes, directed = T)
+
+plot(l, 
+     edge.arrow.size=.3, 
+     layout=layout_with_kk, 
+     main="Gesamtnetzwerk",
+     sub="Engagement der Lebensmittelkonzerne")
+```
+## Kapitel 1.2 erste kleine Anpassungen des Plots
+
+Hier entfernen wir die Labels, um einen besseren Blick auf die Knoten zu bekommen.
+
+```{r Netzwerk ohne Labels}
+l1 <- graph_from_data_frame(d=el, vertices = nodes, directed = T)
+
+plot(l1, 
+     edge.arrow.size=.3, 
+     layout=layout_with_kk, 
+     main="Gesamtnetzwerk",
+     sub="Engagement der Lebensmittelkonzerne (ohne Labels)",
+     vertex.label=NA)
+```
+## Kapitel 1.3: Knoten einf??rben
+
+Um die verschiedenen Typen an Organisationen besser zuordenen zu k??nnen, f??rben sie unterschiedlichen ein.
+Definition der Organisationstypen:
+1 = Lebensmittelkonzerne
+2 = Parteien
+3 = NGOs mit Fokus Politik / Gesellschaft
+4 = NGOs mit Fokus Umwelt
+5 = Vereine
+6 = Verb??nde
+7 = Sonstiges
+
+Auf eine Farbgebung auf Basis des Farbverlauf-Befehl m??ssen wir leider verzeichten, da dieser an Indegrees festgemacht wird und der Indegree in unserem Netzwerk immer bei 1 liegt. 
+Deshalb w??hlen wir eigenst??ndig harmonierende Farben aus.
+
+```{r Knoten einfaerben}
+
+V(l)[(V(l)$Typ=="1")]$color <-"lightblue"
+V(l)[(V(l)$Typ=="2")]$color <-"blue"
+V(l)[(V(l)$Typ=="3")]$color <-"darkgrey"
+V(l)[(V(l)$Typ=="4")]$color <-"navy"
+V(l)[(V(l)$Typ=="5")]$color <-"dodgerblue"
+V(l)[(V(l)$Typ=="6")]$color <-"turquoise"
+V(l)[(V(l)$Typ=="7")]$color <-"whitesmoke"
+
+plot(l, 
+     edge.arrow.size=.3,
+     layout=layout_with_kk,
+     vertex.label=NA, 
+     main="Gesamtnetzwerk",
+     sub="Engagement der Lebensmittelkonzerne (eingefaerbt)")
+
+```
+
+### Kapitel 2: fortgeschrittene Visualisierung
+
+## Kapitel 2.1: Edges einf??rben
+
+Um die Art des Engagement ersichtlich zu machen, f??rben wir das relationship-Attribut als Edges verschiedener Farben ein.
+
+
+```{r Edges nach Farbe skalieren - Attribute anlegen}
+E(l)[(E(l)$relationship=="1")]$color <-"dodgerblue"
+E(l)[(E(l)$relationship=="2")]$color <-"lightblue"
+E(l)[(E(l)$relationship=="3")]$color <-"darkgrey"
+E(l)[(E(l)$relationship=="4")]$color <-"navy"
+E(l)[(E(l)$relationship=="5")]$color <-"turquoise"
+E(l)[(E(l)$relationship=="6")]$color <-"darkslateblue"
+```
+
+## Kapitel 2.2: Teilnetzwerke bilden
+
+Um eine h??here Aussagekraft des Netzwerk zu erhalten, zerlegen wir es in Teilnetzwerke. Die Teilnetzwerke basieren auf dem Attribut "Typ" aus der Nodelist. Dazu extrahieren wir immer einen Typ und die Lebensmittelkonzerne, um zu sehen, ob diese ??ber ein Engagement verbunden sind.
+ACHTUNG: Wir erstellen kein Teilnetzwerk des Typs "Partei", da es hier keine entsprechenen Daten aus der Recherche gibt.
+
+# Kapitel 2.2.1: Teilnetzwerke bilden: Lebensmittelkonzerne und NGOs mit Fokus Umwelt
+```{r NGOUmwelt Teilnetzwerk}
+
+ngosumwelt1 <- delete_vertices(l, V(l)[Typ == "3"])
+ngosumwelt2 <- delete_vertices(ngosumwelt1, V(ngosumwelt1)[Typ == "5"])
+ngosumwelt3 <- delete_vertices(ngosumwelt2, V(ngosumwelt2)[Typ == "6"])
+ngosumwelt4 <- delete_vertices(ngosumwelt3, V(ngosumwelt3)[Typ == "7"])
+plot(ngosumwelt4,
+     vertex.color = "olivedrab3",
+     edge.arrow.size=0.35,
+     layout = layout_with_kk,
+     main = "NGOs mit Fokus Umwelt und Lebensmittelkonzerne")
+```
+
+# Kapitel 2.2.2: Teilnetzwerke bilden: Lebensmittelkonzerne und NGOs mit Fokus Politik / Gesellschaft
+
+```{r NGOPolitik Teilnetzwerk}
+ngospolitik1 <- delete_vertices(l, V(l)[Typ == "4"])
+ngospolitik2 <- delete_vertices(ngospolitik1, V(ngospolitik1)[Typ == "5"])
+ngospolitik3 <- delete_vertices(ngospolitik2, V(ngospolitik2)[Typ == "6"])
+ngospolitik4 <- delete_vertices(ngospolitik3, V(ngospolitik3)[Typ == "7"])
+plot(ngospolitik4,
+     vertex.color = "orange",
+     edge.arrow.size=0.35,
+     layout = layout_with_kk,
+     main = "NGOs mit Fokus Politik / Gesellschaft und Lebensmittelkonzerne")
+```
+
+# Kapitel 2.2.2: Teilnetzwerke bilden: Lebensmittelkonzerne und Vereine und Verbaende
+
+Da sich bereits in der Datenerhebung abzeichnete, dass Vereine und Verb??nde oft nicht eindeutig trennbar sind, visualisieren wir sie hier gemeinsam.
+
+```{r Vereine und Verbaende Teilnetzwerk}
+vv1 <- delete_vertices(l, V(l)[Typ == "4"])
+vv2 <- delete_vertices(vv1, V(vv1)[Typ == "7"])
+vv3 <- delete.vertices(vv2, V(vv2)[Typ == "3"])
+plot(vv3,
+     vertex.color = "lightblue",
+     edge.arrow.size=0.35,
+     layout = layout_with_kk,
+     main = "Vereine, Verbaende und Lebensmittelkonzerne")
+```
+
+# Kapitel 2.2.2: Teilnetzwerke bilden: Lebensmittelkonzerne und sonstige Organisationen
+
+```{r Sonstiges Teilnetzwerk}
+son1 <- delete_vertices(l, V(l)[Typ == "4"])
+son2 <- delete_vertices(son1, V(son1)[Typ == "5"])
+son3 <- delete.vertices(son2, V(son2)[Typ == "3"])
+son4 <- delete.vertices(son3, V(son3)[Typ == "6"])
+plot(son4,
+     vertex.color = "plum4",
+     edge.arrow.size=0.35,
+     layout = layout_with_kk,
+     main = "Sonstiges Engagement")
+```
+
+### Kapitel 3: Cluster
+
+Durch die Beschaffenheit des Datensatzes ist das Ergebnis des Cluster-Befehls relativ gut vorhersehbar. Trotzdem f??hren wir eine Visualierung durch.
+
+```{r Cluster}
+lc <- cluster_walktrap(l)
+modularity(lc)
+membership(lc)
+plot (lc, l, edge.arrow.size=0.2, vertex.label=NA)
+```
+
+### Kapitel 4: Netzwerkma??e berechnen
+
+Um die Aussage des Gesamtnetzwerks zu ??berpr??fen, berechnen wir einige Netzwerkma??e.
+
+density(l)
+```{r Dichte}
+edge_density(l)
+```
+Die geringe Dichte von 0.006073947 ist dadurch zu erkl??ren, dass es f??r die gro??e Anzahl an Akteuren nur wenige Verbindungen gibt.
+
+```{r Durchmesser}
+diameter(l)
+```
+Der Durchmesser von 1 entsteht dadurch, dass 
+
+```{r Pfaddistanz }
+mean_distance(l)
+```
+Die Pfaddistanz von 1 entsteht dadruch, dass die Lebensmittelkonzerne, wenn sie verbunden sind, immer ??ber einen weiteren Akteur (Organisation) miteinander verbunden sind.
+
+### Kapitel 5: Akteursma??e berechnen
+
+```{r}
+degree(l)
+```
+
+Das Ergebnis ist so zu interpretieren, als dass die Konzerne hohe Degrees haben, da sie die Hauptakteure sind. Organisationen mit dem Degree 1 sind nur mit einem Konzern verbunden. (Teiweise auch die Organisationen mit 2 oder 3 wenn ein Konzern auf mehrere Art und Weisen engagiert ist.)
+
+```{r Betweenness}
+centr_betw(l)
+```
+Das Ergebnis von 0 
+
+```{r Closeness}
+centralization.closeness(l)
+```
+Das Ergebnis von Werten nahe 0 
+
+```{r Eigenvector}
+centr_eigen(l)
+```
+Auffallen ist, dass ein Akteur den Wert 1,0 besitzt, das Consumer Goods Forum. Dies ist die einzige Organisation, in der alle Lebensmittelkonzerne Mitglied sind. Und diese wiederum sind durch ihr Engagement im Netzwerk gut vernetzt.
